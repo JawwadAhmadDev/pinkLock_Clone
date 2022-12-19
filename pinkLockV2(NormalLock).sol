@@ -1049,7 +1049,7 @@ library SafeERC20 {
 
 
 
-contract PinkLock02 is IPinkLock, Pausable {
+contract PinkLock_NormalLock is IPinkLock, Pausable {
     using Address for address payable;
     using EnumerableSet for EnumerableSet.AddressSet;
     using EnumerableSet for EnumerableSet.UintSet;

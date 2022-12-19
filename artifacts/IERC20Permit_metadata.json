@@ -120,11 +120,11 @@
 	},
 	"sources": {
 		"pinkLockV2(NormalLock).sol": {
-			"keccak256": "0x847fd226c7bd431b22a234bb4bab261c385e4b89a7f3b5f6fc458fc0e5e531ff",
+			"keccak256": "0x4781906117d19abb8e51f24a81c928cc227953d82a551c5894f20f8b1265af39",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://9da180dde253699234ef8da7c78e19f113423299173a460714c893afbf3b60e5",
-				"dweb:/ipfs/QmXkYSEAdY435VH8Fd9Tg2sbZLmJEiZhRk4Uanenu3GSAP"
+				"bzz-raw://57d47b7f04b150df8a92cf332c0a5379af98826462577327cefe81729399afb6",
+				"dweb:/ipfs/QmRbnP8HeWUPYXe4BYyZLbtRUwY4KakyajoisZVRqL44Xk"
 			]
 		}
 	},
