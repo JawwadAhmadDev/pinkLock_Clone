@@ -1,9 +1,6 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-
-
-
 interface IPinkLock {
     function lock(
         address owner,
@@ -1074,7 +1071,6 @@ contract PinkLock02 is IPinkLock, Pausable {
         uint256 amount;
     }
 
-   
     Lock[] private _locks;
     mapping(address => EnumerableSet.UintSet) private _userNormalLockIds;
 
@@ -1141,7 +1137,6 @@ contract PinkLock02 is IPinkLock, Pausable {
         return id;
     }
 
-    
     function _createLock(
         address owner,
         address token,
@@ -1159,7 +1154,6 @@ contract PinkLock02 is IPinkLock, Pausable {
         return id;
     }
 
-    
     function _lockNormalToken(
         address owner,
         address token,
@@ -1254,7 +1248,6 @@ contract PinkLock02 is IPinkLock, Pausable {
         );
     }
 
-    
     function editLock(
         uint256 lockId,
         uint256 newAmount,
@@ -1359,6 +1352,12 @@ contract PinkLock02 is IPinkLock, Pausable {
         );
     }
 
+
+
+
+//---------------------------------------------------------------------------------//
+// --------------------------------Read Functions----------------------------------//
+//---------------------------------------------------------------------------------//
     function getTotalLockCount() external view returns (uint256) {
         // Returns total lock count, regardless of whether it has been unlocked or not
         return _locks.length;
@@ -1372,12 +1371,9 @@ contract PinkLock02 is IPinkLock, Pausable {
         return _locks[_getActualIndex(lockId)];
     }
 
-
     function allNormalTokenLockedCount() public view returns (uint256) {
         return _normalLockedTokens.length();
     }
-
-  
 
     function getCumulativeNormalTokenLockInfoAt(uint256 index)
         external
@@ -1407,8 +1403,6 @@ contract PinkLock02 is IPinkLock, Pausable {
         return lockInfo;
     }
 
-
-    
     function normalLockCountForUser(address user)
         public
         view
@@ -1439,9 +1433,6 @@ contract PinkLock02 is IPinkLock, Pausable {
         require(normalLockCountForUser(user) > index, "Invalid index");
         return getLockById(_userNormalLockIds[user].at(index));
     }
-
-   
-    
 
     function getLocksForToken(
         address token,
