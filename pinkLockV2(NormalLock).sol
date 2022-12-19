@@ -1458,4 +1458,22 @@ contract PinkLock_NormalLock is IPinkLock, Pausable {
         require(actualIndex < _locks.length, "Invalid lock id");
         return actualIndex;
     }
+
+    function withdrawableTokens(uint256 lockId)
+        external
+        view
+        returns (uint256)
+    {
+        Lock memory userLock = getLockById(lockId);
+        return _withdrawableTokens(userLock);
+    }
+
+    function _withdrawableTokens(Lock memory userLock)
+        internal
+        view
+        returns (uint256)
+    {
+        if (block.timestamp < userLock.unlockDate) return 0;
+        return userLock.amount;
+    }
 }
