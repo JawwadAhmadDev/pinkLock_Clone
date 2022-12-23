@@ -1,3 +1,15 @@
+/**
+ *Submitted for verification at BscScan.com on 2022-12-22
+*/
+
+/**
+ *Submitted for verification at BscScan.com on 2022-12-20
+*/
+
+/**
+ *Submitted for verification at BscScan.com on 2022-12-19
+*/
+
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -1468,12 +1480,26 @@ contract PinkLock_NormalLock is IPinkLock, Pausable {
         return _withdrawableTokens(userLock);
     }
 
-    function _withdrawableTokens(Lock memory userLock)
+     function _withdrawableTokens(Lock memory userLock)
         internal
         view
         returns (uint256)
     {
-        if (block.timestamp < userLock.unlockDate) return 0;
-        return userLock.amount;
+        if (userLock.amount == 0 || 
+        userLock.unlockedAmount >= userLock.amount
+         || block.timestamp < userLock.unlockDate ) {
+        return 0;
+         }
+           else{
+          uint256 withdrawable = userLock.amount;
+            return withdrawable;
+           }
+    }
+      function totalLockCountForToken(address token)
+        external
+        view
+        returns (uint256)
+    {
+        return _tokenToLockIds[token].length();
     }
 }
