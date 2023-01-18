@@ -614,9 +614,9 @@ library EnumerableSet {
     }
 }
 
-import "./ICO.sol";
+import "./PinksaleICO.sol";
 
-contract ICOFactory {
+contract PinksaleICOFactory {
   using Address for address payable;
   using SafeMath for uint256;
   using EnumerableSet for EnumerableSet.AddressSet;
@@ -624,12 +624,13 @@ contract ICOFactory {
   address public feeTo;
   address public owner;
   uint256 public flatFee;
-  uint256 private _salt;
+  uint256 private _salt = 10;
 
   PinksaleICO[] private _ICOs;
 //   EnumerableSet.AddressSet private _ICOs;
   mapping (address => EnumerableSet.AddressSet) private _userICOs;
 
+    // modifier: to check enough fee before creating an ICO.
   modifier enoughFee() {
     require(msg.value >= flatFee, "Flat fee");
     _;
@@ -640,22 +641,28 @@ contract ICOFactory {
     _;
   }
 
+    // will be emitted on each ICO creation.
   event CreatedICO(address indexed tokenAddress);
 
   constructor() {
-    feeTo = msg.sender;
-    flatFee = 10_000_000 gwei;
+    feeTo = msg.sender; // collected fee will be transferred to deployer
+    flatFee = 10_000_000 gwei; // 0.01 BNB/ETH
     owner = msg.sender;
   }
 
+    // changing fee receiver address.
+    // only owner is authorized.
   function setFeeTo(address feeReceivingAddress) external onlyOwner {
     feeTo = feeReceivingAddress;
   }
 
+    // changing fee amount.
+    // only owner is authorized.
   function setFlatFee(uint256 fee) external onlyOwner {
     flatFee = fee;
   }
 
+    // refund extra ETH/BNB fee sent by user at the time of ICO creation
   function refundExcessiveFee() internal {
     uint256 refund = msg.value.sub(flatFee);
     if (refund > 0) {
@@ -663,19 +670,27 @@ contract ICOFactory {
     }
   }
 
+    // create an instance of Pinksale ICO.
   function create(
-    address _sale_token,
-    address _buy_token, // will be address(0) in case of buy with BNB.
+    IERC20 _sale_token,
+    IERC20 _buy_token, // will be address(0) in case of buy with BNB.
     uint256 _token_rate,
     uint256 _token_supply,
     uint256 _ICO_start,
     uint256 _ICO_end
   ) external payable enoughFee returns (address) {
-    require(_ICO_start > block.timestamp, "Start time should be after now.");
-    require(_ICO_end > _ICO_start, "End date cannot be earlier than start date");
+    require(_ICO_start > block.timestamp, "FactoryICO: Start time should be after now.");
+    require(_ICO_end > _ICO_start, "FactoryICO: End date should be greater than start date");
+    require(_sale_token.balanceOf(msg.sender) >= _token_supply, "FactoryICO: You don't have enough tokens");
+    require(_sale_token.allowance(msg.sender, address(this)) >= _token_supply, "FactoryICO: Approve first");
 
+    // take tokens from user for transfer to the ICO smart contract.
     refundExcessiveFee();
-    PinksaleICO newICO = new PinksaleICO{salt: bytes32(++_salt)}(
+
+    // create2 opcode is used to create instances.
+    PinksaleICO newICO = new PinksaleICO{
+        salt: bytes32(++_salt)
+    }(
       msg.sender,
       _sale_token,
       _buy_token,
@@ -685,11 +700,16 @@ contract ICOFactory {
       _ICO_end
     );
 
-    _ICOs.push(newICO);
-    _userICOs[msg.sender].add(address(newICO));
+    // transfer all the supply to ICO.
+    _sale_token.transferFrom(msg.sender, address(newICO), _token_supply);
+    _ICOs.push(newICO); // take record of all created ICOs.
+    _userICOs[msg.sender].add(address(newICO)); // take record of all created ICOs for specific user.
 
+    // if flatFee is enabled then transfer fee to fee receiver address.
+    if(flatFee > 0) { 
+        payable(feeTo).transfer(flatFee);
+    }
     emit CreatedICO(address(newICO));
-    payable(feeTo).transfer(flatFee);
     return address(newICO);
   }
 

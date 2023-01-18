@@ -209,8 +209,8 @@ contract PinksaleICO is ReentrancyGuard {
     using SafeMath for uint256;
 
     struct ICOInfo {
-        address sale_token; // Sale token
-        address buy_token; // in case of buy with BUSD/USDT/USDC
+        IERC20 sale_token; // Sale token
+        IERC20 buy_token; // in case of buy with BUSD/USDT/USDC
         uint256 token_rate; // 1 base token = ? s_tokens, fixed price
         uint256 token_supply; // total supply user will sale by creating an ICO.
         uint256 ICO_start;
@@ -235,7 +235,6 @@ contract PinksaleICO is ReentrancyGuard {
     struct TokenInfo {
         string name;
         string symbol;
-        uint256 totalsupply;
         uint256 decimal;
     }
 
@@ -248,7 +247,7 @@ contract PinksaleICO is ReentrancyGuard {
     uint256 public ICOSetting;
 
 
-    mapping(address => BuyerInfo) public buyers;
+    mapping(address => BuyerInfo) private buyers;
 
     event ICOCreated(address, address);
     event UserDepsitedSuccess(address, uint256);
@@ -264,8 +263,8 @@ contract PinksaleICO is ReentrancyGuard {
 
     constructor(
         address owner_,
-        address _sale_token,
-        address _buy_token,
+        IERC20 _sale_token,
+        IERC20 _buy_token,
         uint256 _token_rate,
         uint256 _token_supply,
         uint256 _ICO_start,
@@ -276,42 +275,44 @@ contract PinksaleICO is ReentrancyGuard {
             _sale_token,
             _buy_token,
             _token_rate,
+            _token_supply,
             _ICO_start,
             _ICO_end
         );
         owner = owner_;
 
-        require(IERC20(_sale_token).balanceOf(owner) >= _token_supply, "ICO constructor: Total supply error");
-        IERC20(_sale_token).transferFrom(owner, address(this), _token_supply);
+        // require(IERC20(_sale_token).balanceOf(owner) >= _token_supply, "ICO constructor: Total supply error");
+        // _sale_token.transferFrom(owner, address(this), _token_supply);
         
         emit ICOCreated(owner, address(this));
     }
 
     function init_private (
-        address _sale_token,
-        address _buy_token,
+        IERC20 _sale_token,
+        IERC20 _buy_token,
         uint256 _token_rate,
+        uint256 _token_supply,
         uint256 _ICO_start,
         uint256 _ICO_end
-        ) public onlyOwner {
+        ) private onlyOwner {
 
         require(ICOSetting == 0, "Already setted");
-        require(_sale_token != address(0), "Zero Address");
+        require(address(_sale_token) != address(0), "Zero Address");
         
-        ICO_info.sale_token = address(_sale_token);
-        if(_buy_token != address(0)){
-            ICO_info.buy_token = address(_buy_token);
+        ICO_info.sale_token = _sale_token;
+        if(address(_buy_token) != address(0)){
+            ICO_info.buy_token = _buy_token;
         }
         ICO_info.token_rate = _token_rate;
+        ICO_info.token_supply = _token_supply;
         ICO_info.ICO_end = _ICO_end;
         ICO_info.ICO_start =  _ICO_start;
         // ICO_info.canceled = false;
 
         //Set token token info
-        tokeninfo.name = IERC20(ICO_info.sale_token).name();
-        tokeninfo.symbol = IERC20(ICO_info.sale_token).symbol();
-        tokeninfo.decimal = IERC20(ICO_info.sale_token).decimals();
-        tokeninfo.totalsupply = IERC20(ICO_info.sale_token).totalSupply();
+        tokeninfo.name = ICO_info.sale_token.name();
+        tokeninfo.symbol = ICO_info.sale_token.symbol();
+        tokeninfo.decimal = ICO_info.sale_token.decimals();
 
         ICOSetting = 1;
     }
@@ -331,7 +332,7 @@ contract PinksaleICO is ReentrancyGuard {
         if(block.timestamp > ICO_info.ICO_end){
             return 2; // ICO ended
         }
-        if(status.raised_amount != ICO_info.token_supply) {
+        if(status.sold_amount != ICO_info.token_supply) {
             return 1; // ICO: Sale Live
         }
             return 0; // Wonderful: Total Supply sold
@@ -344,21 +345,21 @@ contract PinksaleICO is ReentrancyGuard {
 
     // Receive BNB and transfer ERC20 token according to the set exchange rate.
     function buyWithBNB() external payable nonReentrant buyEnabled {
+        address _buyer = msg.sender; // for later redundent use. Purpose: Gas consumption.
         uint256 _BNBAmount_in = msg.value; // for later redundent use. Purpose: gas consumption.
         uint256 _actualBNB_in; // actual amount of bnb to be received.
-        uint256 _remaining_supply = ICO_info.token_supply - status.raised_amount; 
         uint256 _tokens_out; // total ERC20 tokens out.
         uint256 _remaining_out; // unused amount of bnb
-        address _buyer = msg.sender; // for later redundent use. Purpose: Gas consumption.
+        uint256 _remaining_supply = remainingSupply();
 
         require(_BNBAmount_in > 0, "ICO: Invalid amount of sent BNB");
-        require(ICO_info.buy_token == address(0), "ICO: Token cannot buy with bnb");
+        require(address(ICO_info.buy_token) == address(0), "ICO: Token cannot buy with bnb");
         _tokens_out = _BNBAmount_in * ICO_info.token_rate;
 
         if(_tokens_out > _remaining_supply) {
             _tokens_out = _remaining_supply; // actual tokens out.
-            _remaining_out = _BNBAmount_in - _tokens_out.div(ICO_info.token_rate); // unused bnb amount.
-            _actualBNB_in = _BNBAmount_in - _remaining_out; // acutual bnb amount to be received.
+            _remaining_out = _BNBAmount_in.sub(_tokens_out.div(ICO_info.token_rate)); // unused bnb amount.
+            _actualBNB_in = _BNBAmount_in.sub(_remaining_out); // acutual bnb amount to be received.
             _BNBAmount_in = _actualBNB_in; // update the _BNBAmount_in value for later use.
         }
 
@@ -372,7 +373,7 @@ contract PinksaleICO is ReentrancyGuard {
         status.raised_amount = status.raised_amount.add(_BNBAmount_in);
         status.sold_amount = status.sold_amount.add(_tokens_out);
 
-        IERC20(ICO_info.sale_token).transfer(_buyer, _tokens_out); // transfer ERC20 tokens to the buyer.
+        ICO_info.sale_token.transfer(_buyer, _tokens_out); // transfer ERC20 tokens to the buyer.
 
         if(_remaining_out != 0){
             payable(_buyer).transfer(_remaining_out); // refund unused bnb to the buyer.
@@ -386,11 +387,11 @@ contract PinksaleICO is ReentrancyGuard {
         address _buyer = msg.sender; // for later redundent use. Purpose: Gas consumption.
         uint256 _amount_in = _amount;
         uint256 _actualAmount_in; // actual amount of sent BUSD/USDT/USDC token to be received.
-        uint256 _remaining_supply = ICO_info.token_supply - status.raised_amount; 
         uint256 _tokens_out; // total ERC20 tokens out.
         uint256 _remaining_out; // unused amount of sent BUSD/USDT/USDC token
+        uint256 _remaining_supply = remainingSupply(); 
 
-        require(_token == IERC20(ICO_info.buy_token), "ICO buy: Invalid _token address");
+        require(_token == ICO_info.buy_token, "ICO buy: Invalid _token address");
         require(_amount_in > 0, "ICO: Invalid amount of sent BUSD/USDT/USDC");
         require(_token.balanceOf(_buyer) >= _amount, "ICO buy: Insufficient balance");
 
@@ -398,8 +399,8 @@ contract PinksaleICO is ReentrancyGuard {
 
         if(_tokens_out > _remaining_supply) {
             _tokens_out = _remaining_supply; // actual tokens out.
-            _remaining_out = _amount_in - _tokens_out.div(ICO_info.token_rate); // unused bnb amount.
-            _actualAmount_in = _amount_in - _remaining_out; // acutual bnb amount to be received.
+            _remaining_out = _amount_in.sub(_tokens_out.div(ICO_info.token_rate)); // unused bnb amount.
+            _actualAmount_in = _amount_in.sub(_remaining_out); // acutual bnb amount to be received.
             _amount_in = _actualAmount_in; // update _tokens
         }
 
@@ -415,7 +416,7 @@ contract PinksaleICO is ReentrancyGuard {
         status.raised_amount = status.raised_amount.add(_amount_in);
         status.sold_amount = status.sold_amount.add(_tokens_out);
 
-        IERC20(ICO_info.sale_token).transfer(_buyer, _tokens_out); // transfer ERC20 tokens to the buyer.
+        ICO_info.sale_token.transfer(_buyer, _tokens_out); // transfer ERC20 tokens to the buyer.
 
         // if(_remaining_out != 0){
         //     _token.transfer(_buyer, _remaining_out); // transfer unused bnb to the buyer.
@@ -428,7 +429,8 @@ contract PinksaleICO is ReentrancyGuard {
     // On ICO Ended
     function ownerWithdrawRemainingTokens () external onlyOwner {
         require(getICOStatus() == 2, "ICO OwnerwithDraw: ICO is not ended yet"); // ICO Ended
-        IERC20 _token = IERC20(ICO_info.sale_token);
+        IERC20 _token = ICO_info.sale_token;
+        require(_token.balanceOf(address(this)) > 0, "ICO ownerWithdraw: Already withdrawn");
         _token.transfer(owner, _token.balanceOf(address(this)));
         
         emit OwnerWithdrawRemainingTokensSuccess(_token.balanceOf(address(this)));
@@ -437,7 +439,7 @@ contract PinksaleICO is ReentrancyGuard {
     // on ICO ended.
     function ownerWithdrawCollectedBNBs () external onlyOwner {
         require(getICOStatus() == 2, "ICO OwnerwithDraw: ICO is not ended yet"); // ICO Ended
-        require(ICO_info.buy_token == address(0), "ICO: ICO didn't created with bnb");
+        require(address(ICO_info.buy_token) == address(0), "ICO: ICO didn't created with bnb");
         require(address(this).balance > 0, "ICO ownerWithdraw: Not collected any BNB yet");
         
         payable(owner).transfer(address(this).balance);
@@ -448,10 +450,10 @@ contract PinksaleICO is ReentrancyGuard {
     // on ICO ended.
     function ownerWithdrawCollectedToken () external onlyOwner {
         require(getICOStatus() == 2, "ICO OwnerWithdraw: ICO is not ended yet"); // ICO ended.
-        require(ICO_info.buy_token != address(0), "ICO OwnerWithdraw: ICO created with BNB");
-        require(IERC20(ICO_info.buy_token).balanceOf(address(this)) > 0, "ICO OwnerWithdraw: Not collected any token yet.");
+        require(address(ICO_info.buy_token) != address(0), "ICO OwnerWithdraw: ICO created with BNB");
+        require(ICO_info.buy_token.balanceOf(address(this)) > 0, "ICO OwnerWithdraw: Not collected any token yet.");
 
-        IERC20 _token = IERC20(ICO_info.buy_token);
+        IERC20 _token = ICO_info.buy_token;
         _token.transfer(owner, _token.balanceOf(address(this)));
 
         emit OwnerWithdrawCollectedTokenSuccess(_token.balanceOf(address(this)));
@@ -465,4 +467,20 @@ contract PinksaleICO is ReentrancyGuard {
     function getICOTimes () public view returns (uint256, uint256) {
         return (ICO_info.ICO_start, ICO_info.ICO_end);
     }
+
+    // get remaining supply of the sale token.
+    function remainingSupply() public view returns (uint256) {
+        return ICO_info.token_supply.sub(status.sold_amount);
+    }
+
+    // get amount of bnb/busd/usdt/usdc sent by user to smart contract
+    function baseByUserCount (address _user) public view returns (uint256) {
+        return buyers[_user].base;
+    }
+    
+    // get amount of _saleTokens purchased by user
+    function saleToUserCount(address _user) public view returns (uint256) {
+        return buyers[_user].sale;
+    }
+    
 }
