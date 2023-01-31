@@ -211,6 +211,7 @@ contract PinksaleICO is ReentrancyGuard {
     struct ICOInfo {
         IERC20 sale_token; // Sale token
         IERC20 buy_token; // in case of buy with BUSD/USDT/USDC
+        string buy_token_name; // used to store buy token name to get at front end.
         uint256 token_rate; // 1 base token = ? s_tokens, fixed price
         uint256 token_supply; // total supply user will sale by creating an ICO.
         uint256 ICO_start;
@@ -265,6 +266,7 @@ contract PinksaleICO is ReentrancyGuard {
         address owner_,
         IERC20 _sale_token,
         IERC20 _buy_token,
+        string memory _buy_token_name,
         uint256 _token_rate,
         uint256 _token_supply,
         uint256 _ICO_start,
@@ -274,6 +276,7 @@ contract PinksaleICO is ReentrancyGuard {
         init_private(
             _sale_token,
             _buy_token,
+            _buy_token_name,
             _token_rate,
             _token_supply,
             _ICO_start,
@@ -290,6 +293,7 @@ contract PinksaleICO is ReentrancyGuard {
     function init_private (
         IERC20 _sale_token,
         IERC20 _buy_token,
+        string memory _buy_token_name,
         uint256 _token_rate,
         uint256 _token_supply,
         uint256 _ICO_start,
@@ -303,6 +307,7 @@ contract PinksaleICO is ReentrancyGuard {
         if(address(_buy_token) != address(0)){
             ICO_info.buy_token = _buy_token;
         }
+        ICO_info.buy_token_name = _buy_token_name;
         ICO_info.token_rate = _token_rate;
         ICO_info.token_supply = _token_supply;
         ICO_info.ICO_end = _ICO_end;

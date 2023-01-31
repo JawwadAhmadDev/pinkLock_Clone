@@ -674,6 +674,7 @@ contract PinksaleICOFactory {
   function create(
     IERC20 _sale_token,
     IERC20 _buy_token, // will be address(0) in case of buy with BNB.
+    string memory _buy_token_name,
     uint256 _token_rate,
     uint256 _token_supply,
     uint256 _ICO_start,
@@ -694,6 +695,7 @@ contract PinksaleICOFactory {
       msg.sender,
       _sale_token,
       _buy_token,
+      _buy_token_name,
       _token_rate,
       _token_supply,
       _ICO_start,
